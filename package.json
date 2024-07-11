@@ -6,7 +6,7 @@
   "author": "Pham Yen Dev",
   "description": "nhovequehuong1003@gmail.com",
   "engines": {
-    "node": "18.16.0"
+    "node": "18.x"
   },
   "scripts": {
     "dev": "vite --host",
