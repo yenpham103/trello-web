@@ -1,4 +1,5 @@
 import axios from "axios";
+//Phai la string
 const API_ROOT = import.meta.env.VITE_API_ROOT;
 //Không đưa vào try...catch vì sau đó sẽ catch lỗi tập trung tại một nơi bằng cách tận dụng một thứ cực kỳ mạnh mẽ trong axios đó là Interceptors.
 //Hiểu đơn giản Interceptors là cách mà chúng ta sẽ đánh chặn vào giữa request hoặc response để xử lý logic mà chúng ta muốn.
