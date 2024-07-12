@@ -13,7 +13,7 @@ function ListCards({ cards }) {
     >
       <Box
         sx={{
-          padding: "0 5px",
+          padding: "0 5px 5px 5px",
           margin: "0 5px",
           display: "flex",
           flexDirection: "column",

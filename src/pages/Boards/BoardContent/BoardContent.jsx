@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import ListColumns from "./ListColumns/ListColumns";
 import { mapOrder } from "~/utils/sorts";
@@ -7,21 +7,35 @@ import Card from "./ListColumns/Column/ListCards/Card/Card";
 import {
   DndContext,
   PointerSensor,
-  MouseSensor,
-  TouchSensor,
+  // MouseSensor,
+  // TouchSensor,
   useSensor,
   useSensors,
   DragOverlay,
   defaultDropAnimationSideEffects,
   closestCorners,
+  closestCenter,
+  pointerWithin,
+  rectIntersection,
+  getFirstCollision,
 } from "@dnd-kit/core";
+import { MouseSensor, TouchSensor } from "~/customLib/DndKitSensors";
 import { arrayMove } from "@dnd-kit/sortable";
-import { cloneDeep } from "lodash";
+import { cloneDeep, isEmpty } from "lodash";
+import { generatePlaceholderCard } from "~/utils/formatters";
 const ACTIVE_DRAG_ITEM_TYPE = {
   COLUMN: "ACTIVE_DRAG_ITEM_TYPE_COLUMN",
   CARD: "ACTIVE_DRAG_ITEM_TYPE_CARD",
 };
-function BoardContent({ board }) {
+function BoardContent({
+  board,
+  createNewColumn,
+  createNewCard,
+  moveColumns,
+  moveCardInTheSameColumn,
+  moveCardDifferentColumn,
+  deleteColumnDetails,
+}) {
   // const pointerSensor = useSensor(PointerSensor, {
   //   activationConstraint: { distance: 10 },
   // });
@@ -45,13 +59,12 @@ function BoardContent({ board }) {
   const [activeDragItemData, setActiveDragItemData] = useState(null);
   const [oldColumnDraggingCard, setOldColumnDraggingCard] = useState(null);
 
+  //Điểm va chạm cuối cùng (xử lý thuật toán phát hiện vat chạm)
+  let lastOverId = useRef(null);
+
   useEffect(() => {
-    const orderedColumns = mapOrder(
-      board?.columns,
-      board?.columnOrderIds,
-      "_id"
-    );
-    setOrderedColumns(orderedColumns);
+    //Columns đã được sắp xếp ở component cha cao nhất (boardDetail)
+    setOrderedColumns(board.columns);
   }, [board]);
 
   //Tìm 1 cái column theo cardId
@@ -69,7 +82,8 @@ function BoardContent({ board }) {
     over,
     activeColumn,
     activeDraggingCardId,
-    activeDraggingCardData
+    activeDraggingCardData,
+    triggerFrom
   ) => {
     setOrderedColumns((prevColumns) => {
       //Tìm vị trí index của overCard trong column đích ( nơi  mà active card sắp được thả)
@@ -96,16 +110,24 @@ function BoardContent({ board }) {
       const nextOverColumn = nextColumns.find(
         (column) => column._id === overColumn._id
       );
+
+      //nextActiveColumn cũ
       if (nextActiveColumn) {
         // Xóa card ở column active (column cũ) cái lúc mà kéo card ra khỏi nó để sang column khác
         nextActiveColumn.cards = nextActiveColumn.cards.filter(
           (card) => card._id !== activeDraggingCardId
         );
+        //Thêm place-holder card
+        if (isEmpty(nextActiveColumn.cards)) {
+          nextActiveColumn.cards = [generatePlaceholderCard(nextActiveColumn)];
+        }
+
         //Cập nhật lại mảng cardOrderIds cho chuẩn dữ liệu
         nextActiveColumn.cardOrderIds = nextActiveColumn.cards.map(
           (card) => card._id
         );
       }
+      //Column new
       if (nextOverColumn) {
         //Kiểm tra xem card đang kéo đã tồn tại ở overColumn hay chưa, nếu có thì xóa nó trước
         nextOverColumn.cards = nextOverColumn.cards.filter(
@@ -121,12 +143,25 @@ function BoardContent({ board }) {
           0,
           rebuild_activeDraggingCardData
         );
+        //Xóa placeHolde card
+        nextOverColumn.cards = nextOverColumn.cards.filter(
+          (card) => !card.FE_PlaceholderCard
+        );
+
         //Cập nhật lại mảng cardOrderIds cho chuẩn dữ liệu
         nextOverColumn.cardOrderIds = nextOverColumn.cards.map(
           (card) => card._id
         );
       }
 
+      if (triggerFrom === "handleDragEnd") {
+        moveCardDifferentColumn(
+          activeDraggingCardId,
+          oldColumnDraggingCard._id,
+          nextOverColumn._id,
+          nextColumns
+        );
+      }
       return nextColumns;
     });
   };
@@ -179,7 +214,8 @@ function BoardContent({ board }) {
         over,
         activeColumn,
         activeDraggingCardId,
-        activeDraggingCardData
+        activeDraggingCardData,
+        "handleDragOver"
       );
     }
   };
@@ -204,6 +240,8 @@ function BoardContent({ board }) {
       const activeColumn = findColumnByCardId(activeDraggingCardId);
       const overColumn = findColumnByCardId(overCardId);
       if (!activeColumn || !overColumn) return;
+
+      //Keo tha card giua 2 column khac  nhau
       if (oldColumnDraggingCard._id !== overColumn._id) {
         moveCardBetweenDifferentColumns(
           overColumn,
@@ -212,7 +250,8 @@ function BoardContent({ board }) {
           over,
           activeColumn,
           activeDraggingCardId,
-          activeDraggingCardData
+          activeDraggingCardData,
+          "handleDragEnd"
         );
       } else {
         // Lấy vị trí cũ từ oldColumnDraggingCard
@@ -228,6 +267,7 @@ function BoardContent({ board }) {
           oldCardIndex,
           newCardIndex
         );
+        const dndOrderedCardIds = dndOrderedCards.map((card) => card._id);
         setOrderedColumns((prevColumns) => {
           //Clone mảng orderedColumnsState cũ ra 1 cái mới để xử lý data rồi return, cập nhật lại  orderedColumnsState mới
           const nextColumns = cloneDeep(prevColumns);
@@ -237,10 +277,15 @@ function BoardContent({ board }) {
             (column) => column._id === overColumn._id
           );
           targetColumn.cards = dndOrderedCards;
-          targetColumn.cardOrderIds = dndOrderedCards.map((card) => card._id);
+          targetColumn.cardOrderIds = dndOrderedCardIds;
 
           return nextColumns;
         });
+        moveCardInTheSameColumn(
+          dndOrderedCards,
+          dndOrderedCardIds,
+          oldColumnDraggingCard._id
+        );
       }
     }
 
@@ -260,9 +305,10 @@ function BoardContent({ board }) {
           oldColumnIndex,
           newColumnIndex
         );
-        //Call Api
-        // const dndOrderedColumnIds = dndOrderedColumns.map((column) => column._id);
         setOrderedColumns(dndOrderedColumns);
+
+        //Call Api
+        moveColumns(dndOrderedColumns);
       }
     }
 
@@ -281,13 +327,52 @@ function BoardContent({ board }) {
       },
     }),
   };
+
+  //Custom thuật toán phát hiện va chạm
+  const collisionDetectionStrategy = useCallback(
+    (args) => {
+      if (activeDragItemType === ACTIVE_DRAG_ITEM_TYPE.COLUMN) {
+        return closestCorners({ ...args });
+      }
+      const pointerIntersection = pointerWithin(args);
+
+      if (!pointerIntersection?.length) return;
+
+      // const intersections =
+      //   pointerIntersection?.length > 0
+      //     ? pointerIntersection
+      //     : rectIntersection(args);
+
+      let overId = getFirstCollision(pointerIntersection, "id");
+      if (overId) {
+        const checkColumn = orderedColumns.find(
+          (column) => column._id === overId
+        );
+        if (checkColumn) {
+          overId = closestCorners({
+            ...args,
+            droppableContainers: args.droppableContainers.filter(
+              (container) =>
+                container.id !== overId &&
+                checkColumn?.cardOrderIds?.includes(container.id)
+            ),
+          })[0]?.id;
+        }
+        lastOverId.current = overId;
+        return [{ id: overId }];
+      }
+      return lastOverId.current ? [{ id: lastOverId.current }] : [];
+    },
+    [activeDragItemType, orderedColumns]
+  );
   return (
     <DndContext
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
       sensors={mySensors}
-      collisionDetection={closestCorners}
+      // collisionDetection={closestCorners}
+      collisionDetection={collisionDetectionStrategy}
     >
       <Box
         sx={{
@@ -298,7 +383,12 @@ function BoardContent({ board }) {
           padding: "10px 0",
         }}
       >
-        <ListColumns columns={orderedColumns} />
+        <ListColumns
+          columns={orderedColumns}
+          createNewColumn={createNewColumn}
+          createNewCard={createNewCard}
+          deleteColumnDetails={deleteColumnDetails}
+        />
         <DragOverlay dropAnimation={customDropAnimation}>
           {!activeDragItemType && null}
           {activeDragItemType === ACTIVE_DRAG_ITEM_TYPE.COLUMN && (

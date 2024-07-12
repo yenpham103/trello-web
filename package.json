@@ -22,9 +22,12 @@
     "@emotion/styled": "^11.11.5",
     "@mui/icons-material": "^5.11.16",
     "@mui/material": "^5.15.21",
+    "axios": "^1.7.2",
     "lodash": "^4.17.21",
+    "material-ui-confirm": "^3.0.16",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-toastify": "^10.0.5"
   },
   "devDependencies": {
     "@types/react": "^18.0.28",
