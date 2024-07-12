@@ -26,6 +26,67 @@ import { toast } from "react-toastify";
 import { useConfirm } from "material-ui-confirm";
 
 function Column({ column, createNewCard, deleteColumnDetails }) {
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [openNewCardForm, setOpenNewCardForm] = useState(false);
+  const [newCardTitle, setNewCardTitle] = useState("");
+
+  const toggleOpenNewCardForm = () => setOpenNewCardForm(!openNewCardForm);
+
+  const addNewCard = () => {
+    if (!newCardTitle) {
+      toast.error("Please enter Card Title!", {
+        position: "bottom-right",
+      });
+      return;
+    }
+
+    //Tạo dữ liệu Column để gọi API
+    const newCardData = {
+      title: newCardTitle,
+      columnId: column._id,
+    };
+
+    /**
+     * Gọi lên props function createNewColumn nằm ở component cha cao nhất (BoardDetail).
+     * Có thể sử dụng redux để không phải gọi nhiều cấp.
+     */
+    //Gọi API create column ở đây
+    createNewCard(newCardData);
+
+    //Đóng trạng thái thêm Card mới và Clear Input
+    toggleOpenNewCardForm();
+    setNewCardTitle("");
+  };
+
+  const open = Boolean(anchorEl);
+
+  const handleClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  //Xử lý xoá một Column và Cards bên trong nó
+  const confirmDeleteColumn = useConfirm();
+  const handleDeleteColumn = () => {
+    confirmDeleteColumn({
+      title: "Delete Column?",
+      description:
+        "This action will permanently delete your Column and its Cards! Are you sure?",
+      confirmationText: "Confirm",
+      cancellationText: "Cancel",
+    })
+      .then(() => {
+        deleteColumnDetails(column._id);
+      })
+      .catch(() => {});
+  };
+
+  //Cards đã được sắp xếp ở component cha cao nhất (boardDetail)
+  const orderedCards = column.cards;
+
   const {
     attributes,
     listeners,
@@ -34,70 +95,21 @@ function Column({ column, createNewCard, deleteColumnDetails }) {
     transition,
     isDragging,
   } = useSortable({ id: column._id, data: { ...column } });
-  const dndkitColumnStyles = {
-    // touchAction: "none",
+
+  const dndKitColumnStyles = {
+    // touchAction: 'none', //Dành cho sensor default dạng PointerSensor
+    //Nếu sử dụng CSS.Transform như docs thì sẽ lỗi kiểu stretch khi kéo thả.
     transform: CSS.Translate.toString(transform),
     transition,
-    //Chiều cao phải luôn là 100% kết hợp với listener
+    //Chiều cao phải luôn max 100% vì nếu không sẽ lỗi lúc kéo column ngắn qua một column dài thì phải kéo ở khu vực giữa giữa rất khó chịu. Lúc này phải kết hợp với {...listeners} nằm ở Box chứ không phải ở div ngoài cùng để tránh trường hợp kéo vào vùng xanh.
     height: "100%",
     opacity: isDragging ? 0.5 : undefined,
   };
 
-  const [anchorEl, setAnchorEl] = useState(null);
-  const open = Boolean(anchorEl);
-  const handleClick = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
+  //Phải bọc div ở đây vì vấn đề chiều cao của column khi kéo thả sẽ có bug kiểu flickering.
 
-  const orderedCards = column.cards;
-
-  //
-  const [openNewCardForm, setOpenNewCardForm] = useState(false);
-  const toggleOpenNewCardForm = () => setOpenNewCardForm(!openNewCardForm);
-  const [newCardTitle, setNewCardTitle] = useState("");
-
-  const addNewCard = () => {
-    if (!newCardTitle) {
-      toast.error("Please enter Card Title!");
-      return;
-    }
-    //Tạo dữ liệu Column để gọi API
-    const newCardData = {
-      title: newCardTitle,
-      columnId: column._id,
-    };
-    /**
-     * Gọi lên props function createNewColumn nằm ở component cha cao nhất (BoardDetail).
-     * Có thể sử dụng redux để không phải gọi nhiều cấp.
-     */
-    //Gọi API create column ở đây
-    createNewCard(newCardData);
-
-    //Đóng trạng thái thêm Column mới và Clear Input
-    toggleOpenNewCardForm();
-    setNewCardTitle("");
-  };
-
-  //handle xoa 1 column va cards
-  const confirmDeleteColumn = useConfirm();
-  const handleDeleteColumn = () => {
-    //Gọi API delete column ở đây
-    confirmDeleteColumn({
-      title: "Delete Column?",
-      description: "Are you sure?",
-    })
-      .then(() => {
-        deleteColumnDetails(column._id);
-      })
-      .catch(() => {
-        // Handle rejection
-      });
-  };
   return (
-    <div ref={setNodeRef} style={dndkitColumnStyles} {...attributes}>
+    <div ref={setNodeRef} style={dndKitColumnStyles} {...attributes}>
       <Box
         {...listeners}
         sx={{

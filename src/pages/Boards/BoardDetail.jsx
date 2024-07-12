@@ -91,7 +91,7 @@ function BoardDetail() {
     //Cập nhật dữ kiệu cho chuẩn state board
     const dndOrderedColumnIds = dndOrderedColumns.map((column) => column._id);
     const newBoard = { ...board };
-    newBoard.columns = dndOrderedColumnIds;
+    newBoard.columns = dndOrderedColumns;
     newBoard.columnOrderIds = dndOrderedColumnIds;
     setBoard(newBoard);
     // call api

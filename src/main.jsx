@@ -10,18 +10,18 @@ import "react-toastify/dist/ReactToastify.css";
 import { ConfirmProvider } from "material-ui-confirm";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
-    <CssVarsProvider theme={theme}>
-      <ConfirmProvider
-        defaultOptions={{
-          dialogProps: { maxWidth: "xs" },
-          allowClose: false,
-        }}
-      >
-        <CssBaseline />
-        <App />
-        <ToastContainer position="bottom-right" />
-      </ConfirmProvider>
-    </CssVarsProvider>
-  </React.StrictMode>
+  // <React.StrictMode>
+  <CssVarsProvider theme={theme}>
+    <ConfirmProvider
+      defaultOptions={{
+        dialogProps: { maxWidth: "xs" },
+        allowClose: false,
+      }}
+    >
+      <CssBaseline />
+      <App />
+      <ToastContainer position="bottom-right" />
+    </ConfirmProvider>
+  </CssVarsProvider>
+  // </React.StrictMode>
 );

@@ -19,6 +19,7 @@ export default function ListColumns({
   const [openNewColumnForm, setOpenNewColumnForm] = useState(false);
   const toggleOpenNewColumnForm = () =>
     setOpenNewColumnForm(!openNewColumnForm);
+
   const [newColumnTitle, setNewColumnTitle] = useState("");
 
   const addNewColumn = () => {
@@ -26,10 +27,12 @@ export default function ListColumns({
       toast.error("Please enter Column Title!");
       return;
     }
+
     //Tạo dữ liệu Column để gọi API
     const newColumnData = {
       title: newColumnTitle,
     };
+
     /**
      * Gọi lên props function createNewColumn nằm ở component cha cao nhất (BoardDetail).
      * Có thể sử dụng redux để không phải gọi nhiều cấp.
@@ -41,14 +44,13 @@ export default function ListColumns({
     toggleOpenNewColumnForm();
     setNewColumnTitle("");
   };
-
-  /*
-  - SortTableContext yêu cầu items là 1 mảng dạng ["id-1", "id-2", "id-3"], chứ không phải  [{id: "id-1"}, {id: "id-2"}, {id: "id-3"}]
-  - Nếu không đúng thì vẫn kéo thả được những không có animation
-  */
+  /**
+   * SortableContext yêu cầu items là một mảng dạng ['id-1', 'id-2'] chứ không phải là [{id: 'id-1'}, {id: 'id-2'}]
+   * Nếu không đúng thì vẫn kéo thả được nhưng không có animation
+   */
   return (
     <SortableContext
-      items={columns?.map((column) => column?._id)}
+      items={columns?.map((c) => c._id)}
       strategy={horizontalListSortingStrategy}
     >
       <Box
@@ -64,12 +66,13 @@ export default function ListColumns({
       >
         {columns?.map((column) => (
           <Column
+            key={column._id}
+            column={column}
             createNewCard={createNewCard}
             deleteColumnDetails={deleteColumnDetails}
-            key={column?._id}
-            column={column}
           />
         ))}
+
         {!openNewColumnForm ? (
           <Box
             onClick={toggleOpenNewColumnForm}
